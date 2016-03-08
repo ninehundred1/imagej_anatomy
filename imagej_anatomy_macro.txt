@@ -1,0 +1,316 @@
+currentname=getTitle();
+run("Set Scale...", "distance=5802.03 known=1200 pixel=1 unit=um");
+pixelsize=0.2068;
+setBackgroundColor(1, 1, 1);
+getDimensions(width, height, channels, slices, frames);
+run("Profile Plot Options...", "width=3500 height=350 minimum=0 maximum=0 interpolate draw");
+run("Rotate... ");
+run("Duplicate...", "title=[temp]");
+run("Make Composite");
+newimagename=""+currentname+"THRESHOLD";
+run("Duplicate...", "title=["+newimagename+"] duplicate channels=2");
+selectWindow("temp");
+close();
+selectWindow(newimagename);
+run("Grays");
+setTool("dropper");
+run("Line Width...", "line=1");
+waitForUser('Define Background','Pick brightest background area.\nThen click OK');
+threslow=getValue("color.foreground");
+threslow=threslow+1;
+threslow2=threslow;
+getMinAndMax(min, max);
+threshi=max;
+threshi2=threshi;
+//run("Duplicate...", "title="+newimagename+"");
+go_on=true;
+while (go_on==true)
+{
+    setThreshold(threslow, threshi);
+    waitForUser('Background OK?','Press OK to accept or pick other area.\nRed will be counted as signal');
+    threslow=getValue("color.foreground");
+    threslow=threslow+1;
+    if (threslow2==threslow)
+    {
+        go_on=false;
+    }
+    threslow2=threslow;
+}
+go_on=true;
+while (go_on==true)
+{
+    setThreshold(threslow, threshi);
+    waitForUser('Define Cell Bodies','Press OK to accept as is or pick cell body signal to exclude.\nRed will be counted as signal');
+    threshi=getValue("color.foreground");
+    if (threslow==threshi+1)
+    {
+        go_on=false;
+    }
+    if (threslow!=threshi+1)
+    {
+        threshi=threshi-1;
+        if (threshi2==threshi)
+        {
+            go_on=false;
+        }
+        threshi2=threshi;
+    }
+}
+run("Make Binary", "thresholded remaining black");
+run("Invert");
+run("Red");
+setTool("polygon");
+newimagename2=""+currentname+"SUMMARY";
+run("Duplicate...", "title=["+newimagename2+"]");
+selectWindow(newimagename);
+waitForUser('Choose Area','Draw borders of Region 1');
+setForegroundColor(214, 255, 0);
+run("Draw");
+getSelectionBounds(x, y, width, height);
+region1x=x+(width/2);
+region1y=y+(height);
+getRawStatistics(nPixel);
+areaselect=nPixel;
+getHistogram(values, counts, 256);
+minval=counts[255];
+maxval=counts[0];
+print(currentname);
+printr1="Region 1: "+minval+" signal pixels, "+maxval+" background pixels, "+areaselect+" total";
+print(printr1);
+setTool("polygon");
+waitForUser('Chose Area','Draw borders of Region 2\nTo move existing selection, click inside selection and move.\nTo restore previous selection, press shift+alt+E');
+setForegroundColor(214, 255, 0);
+run("Draw");
+getSelectionBounds(x, y, width, height);
+region2x=x+(width/2);
+region2y=y+(height);
+setTool("polygon");
+getRawStatistics(nPixel);
+areaselect2=nPixel;
+getHistogram(values, counts, 256);
+minval2=counts[255];
+maxval2=counts[0];
+printr2="Region 2: "+minval2+" signal pixels, "+maxval2+" background pixels, "+areaselect2+" total";
+print(printr2);
+ratio=minval/minval2;
+printall="Region 1 signal ratio compared to Region 2: "+ratio+"";
+print(printall);
+getDimensions(width, height, channels, slices, frames);
+fonts=floor(width/80);
+setFont("SansSerif", fonts);
+makeRectangle(region1x, region1y, floor(fonts-(fonts*0.25)), floor(fonts+(fonts*0.25)));
+run("Clear");
+makeText("1", region1x, region1y);
+run("Draw");
+makeRectangle(region2x-2, region2y-2, floor(fonts-(fonts*0.25)), floor(fonts+(fonts*0.25)));
+run("Clear");
+makeText("2", region2x, region2y);
+run("Draw");
+makeRectangle(5, 5, fonts*40, ((4*fonts)));
+run("Clear");
+makeText(printr1, 5, 5);
+run("Draw");
+makeText(printr2, 5, (fonts+5));
+run("Draw");
+makeText(printall, 5, ((2*fonts)+5));
+run("Draw");
+run("Select None");
+run("Invert");
+run("Grays");
+print("--");
+setTool("rectangle");
+selectWindow(newimagename2);
+run("Duplicate...", "title=[binareas]");
+run("8-bit");
+run("RGB Color");
+selectWindow(newimagename2);
+run("Duplicate...", "title=[binareasDATA]");
+run("Grays");
+run("32-bit");
+run("Multiply...", "value=100");
+run("Divide...", "value=255");
+selectWindow(newimagename2);
+run("Grays");
+run("32-bit");
+getDimensions(width, height, channels, slices, frames);
+newsizex=width/50;
+newsizey=height/50;
+run("Size...", "width=newsizex height=newsizey constrain average interpolation=None");
+run("Multiply...", "value=100");
+run("Divide...", "value=255");
+run("Size...", "width=width height=height average interpolation=None");
+run("Fire");
+setMinAndMax(0, 100);
+selectWindow("binareas");
+makeRectangle(1071, 3084, 3500, 350);
+getSelectionBounds(x, y, width, height);
+currentx=x;
+currenty=y;
+waitForUser('Plot Bins?','Draw/move borders of Region 1 to plot 2\nPress OK now to skip this step');
+change=false;
+go_on=true;
+counter=1;
+getSelectionBounds(x, y, width, height);
+if (currentx==x)
+{
+    go_on=false;
+}
+currentx=x;
+while (go_on==true)
+{
+    change=true;
+    selectWindow("binareasDATA");
+    makeRectangle(x, y, width, height);
+    run("Plot Profile");
+    makeText(counter, 5, 5);
+    run("Draw");
+    run("Select All");
+    run("Copy");
+    if (counter==1)
+    {
+        plotstack=getImageID();
+    }
+    if (counter!=1)
+    {
+        run("Close");
+        selectImage(plotstack);
+        run("Add Slice");
+        run("Paste");
+    }
+    selectWindow("binareas");
+    setForegroundColor(0, 255, 255);
+    run("Line Width...", "line=5");
+    makeRectangle(x, y, width, height);
+    run("Draw");
+    run("Line Width...", "line=10");
+    getSelectionBounds(x, y, width, height);
+    widthum=width*pixelsize;
+    incrementsscale=floor(widthum/100);
+    width100=100/pixelsize;
+    color=1;
+    for (i=1;
+    i<incrementsscale+1;
+    i++)
+    {
+        if (color==0)
+        {
+            setForegroundColor(0, 255, 255);
+            makeLine(x+(width100*i)-width100, y, x+(width100*i), y);
+            run("Fill");
+            setForegroundColor(255, 255, 0);
+            run("Line Width...", "line=5");
+            makeLine(x+(width100*i)-width100, y, x+(width100*i)-width100, y+height);
+            run("Fill");
+            run("Line Width...", "line=10");
+            color=1;
+        }
+        else
+        {
+            setForegroundColor(255, 255, 0);
+            makeLine(x+(width100*i)-width100, y, x+(width100*i), y);
+            run("Draw");
+            run("Line Width...", "line=5");
+            makeLine(x+(width100*i)-width100, y, x+(width100*i)-width100, y+height);
+            run("Fill");
+            run("Line Width...", "line=10");
+            color=0;
+        }
+        textscale=i*100;
+        makeText(textscale, x+(width100*i)-50, y-100);
+        run("Draw");
+        //setFont("SansSerif", fonts);
+        if (i==incrementsscale)
+        {
+            if (color==0)
+            {
+                setForegroundColor(0, 255, 255);
+                makeLine(x+(width100*i), y, x+width, y);
+                run("Fill");
+                setForegroundColor(255, 255, 0);
+                color=1;
+                run("Line Width...", "line=5");
+                makeLine(x+(width100*i)-width100, y, x+(width100*i)-width100, y+height);
+                run("Fill");
+                run("Line Width...", "line=10");
+            }
+            else
+            {
+                makeLine(x+(width100*i), y, x+width, y);
+                run("Draw");
+                color=0;
+                setForegroundColor(255, 255, 0);
+                run("Line Width...", "line=5");
+                makeLine(x+(width100*i)-width100, y, x+(width100*i)-width100, y+height);
+                run("Fill");
+                run("Line Width...", "line=10");
+            }
+        }
+    }
+    run("Scale Bar...", "width=100 height=32 font=112 color=Black background=White location=[Lower Right] bold");
+    run("Line Width...", "line=1");
+    makeText(counter, x, y);
+    run("Draw");
+    makeRectangle(x, y, width, height);
+    waitForUser('Plot Bins?','Draw/move borders of next Regiont 2\nPress OK to finish');
+    getSelectionBounds(x, y, width, height);
+    if (currentx==x)
+    {
+        go_on=false;
+    }
+    currentx=x;
+    counter=counter+1;
+}
+if (change==true)
+{
+    if (counter==2)
+    {
+        selectImage(plotstack);
+        run("Add Slice");
+        setForegroundColor(255, 255, 255);
+        run("Fill", "slice");
+    }
+    selectImage(plotstack);
+    run("Make Montage...", "columns=1 rows=counter scale=1 border=0");
+    montagestack=getImageID();
+    run("Select All");
+    run("Copy");
+    selectWindow(newimagename2);
+    getDimensions(width, height, channels, slices, frames);
+    newImage("Untitled", "RGB White", height, width, 1);
+    run("Paste");
+    selectWindow("Montage");
+    run("Close");
+    selectWindow("binareasDATA");
+    run("Close");
+    selectWindow("binareas");
+    run("Select All");
+    //setMinAndMax(0, 100);
+    run("Invert");
+    selectImage(plotstack);
+    run("Close");
+}
+if (change==false)
+{
+    selectWindow("binareas");
+    run("Close");
+}
+selectWindow(newimagename2);
+run("Calibration Bar...", "location=[Upper Left] fill=White label=Black number=5 decimal=0 font=12 zoom=4");
+makeText("Pixel density (%)", 10, 10);
+run("Draw");
+run("Select None");
+selectWindow(newimagename);
+run("Duplicate...", "title=[temp]");
+run("Invert");
+run("8-bit");
+setMinAndMax(0, 100);
+selectWindow(newimagename2);
+run("8-bit");
+imageCalculator("Transparent-zero create", newimagename2,"temp");
+selectWindow("temp");
+close();
+selectWindow(newimagename2);
+close();
+run("Images to Stack", newimagename2);
+run("Set Scale...", "distance=0 known=0 pixel=1 unit=pixel");
+run("Profile Plot Options...", "width=450 height=200 minimum=0 maximum=0 interpolate draw");
